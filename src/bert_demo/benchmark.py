@@ -1,7 +1,7 @@
 """
 Benchmark — run BERT-family models and produce a device / memory / timing report.
 
-Runs benchmarks across five task types and prints a summary table showing
+Runs benchmarks across six task types and prints a summary table showing
 which device was used, parameter counts, peak GPU memory, and wall-clock
 timings.
 
@@ -119,6 +119,9 @@ EMBEDDING_SENTENCES = [
     "A fast auburn fox leaps above a sleepy hound.",
     "NVIDIA builds powerful GPUs for AI workloads.",
 ]
+
+ZERO_SHOT_TEXT = "NVIDIA reported record quarterly revenue driven by strong demand for AI chips."
+ZERO_SHOT_LABELS = ["business", "technology", "sports", "politics", "science"]
 
 
 # ---------------------------------------------------------------------------
@@ -297,21 +300,62 @@ def _bench_embeddings(model_name: str, ctx: DeviceContext) -> Result:
     )
 
 
+def _bench_zero_shot(model_name: str, ctx: DeviceContext) -> Result:
+    _gpu_reset()
+    rss_before = _rss_mb()
+
+    t0 = time.perf_counter()
+    pipe = hf_pipeline(
+        "zero-shot-classification", model=model_name, device=ctx.pipeline_device,
+    )
+    load_s = time.perf_counter() - t0
+
+    t1 = time.perf_counter()
+    result = pipe(ZERO_SHOT_TEXT, candidate_labels=ZERO_SHOT_LABELS)
+    infer_s = time.perf_counter() - t1
+
+    params = _count_params(pipe.model)
+    gpu_mb = _gpu_peak_mb() if ctx.on_gpu else 0.0
+    rss_delta = _rss_mb() - rss_before
+
+    top_labels = ", ".join(
+        f"{l} ({s:.3f})" for l, s in zip(result["labels"][:3], result["scores"][:3])
+    )
+    preview = f"Input : {ZERO_SHOT_TEXT}\n    Top-3: {top_labels}"
+
+    del pipe
+    return Result(
+        model_name, "zero-shot-classification", ctx.device_type, ctx.device_name,
+        params, load_s, infer_s, gpu_mb, rss_delta, preview,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
 BENCH_REGISTRY: List[tuple] = [
     # (task_key, model_name, runner)
+    # -- Masked Language Modeling --
     ("fill-mask",           "bert-base-uncased",                                  _bench_fill_mask),
     ("fill-mask",           "bert-large-uncased",                                 _bench_fill_mask),
     ("fill-mask",           "distilbert-base-uncased",                            _bench_fill_mask),
     ("fill-mask",           "albert-base-v2",                                     _bench_fill_mask),
+    ("fill-mask",           "roberta-base",                                       _bench_fill_mask),
+    ("fill-mask",           "microsoft/deberta-v3-base",                          _bench_fill_mask),
+    # -- Question Answering --
     ("question-answering",  "deepset/bert-base-uncased-squad2",                   _bench_qa),
+    ("question-answering",  "bert-large-uncased-whole-word-masking-finetuned-squad", _bench_qa),
+    # -- Named Entity Recognition --
     ("ner",                 "dslim/bert-base-NER",                                _bench_ner),
+    # -- Sentiment Analysis --
     ("sentiment-analysis",  "nlptown/bert-base-multilingual-uncased-sentiment",   _bench_sentiment),
     ("sentiment-analysis",  "distilbert-base-uncased-finetuned-sst-2-english",    _bench_sentiment),
+    # -- Sentence Embeddings --
     ("embeddings",          "bert-base-uncased",                                  _bench_embeddings),
+    ("embeddings",          "nvidia/dragon-multiturn-query-encoder",              _bench_embeddings),
+    # -- Zero-Shot Classification --
+    ("zero-shot-classification", "facebook/bart-large-mnli",                      _bench_zero_shot),
 ]
 
 

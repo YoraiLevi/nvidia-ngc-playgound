@@ -14,7 +14,7 @@ No custom Docker image is built — you work directly with the published NGC con
 | Masked Language Modeling | `src/bert_demo/masked_lm.py` | Predict the top-k words for a `[MASK]` token |
 | Sentence Embeddings | `src/bert_demo/embeddings.py` | Encode sentences and compare them by cosine similarity |
 | Question Answering | `src/bert_demo/qa.py` | Locate an answer span inside a context paragraph |
-| **Benchmark Report** | `src/bert_demo/benchmark.py` | Run 9 BERT-family models, report device / memory / timing |
+| **Benchmark Report** | `src/bert_demo/benchmark.py` | Run 14 BERT-family models, report device / memory / timing |
 
 ---
 
@@ -387,7 +387,7 @@ docker run --gpus all --rm \
 
 ## Step 11 — Benchmark Report: all models at once
 
-`benchmark.py` loads **nine BERT-family models** across five task types
+`benchmark.py` loads **fourteen BERT-family models** across six task types
 and prints a summary table with device info, parameter counts, peak GPU
 memory, and wall-clock timings.
 
@@ -399,11 +399,16 @@ memory, and wall-clock timings.
 | 2 | `bert-large-uncased` | Masked LM |
 | 3 | `distilbert-base-uncased` | Masked LM |
 | 4 | `albert-base-v2` | Masked LM |
-| 5 | `deepset/bert-base-uncased-squad2` | Question Answering |
-| 6 | `dslim/bert-base-NER` | Named Entity Recognition |
-| 7 | `nlptown/bert-base-multilingual-uncased-sentiment` | Sentiment (5-star) |
-| 8 | `distilbert-base-uncased-finetuned-sst-2-english` | Sentiment (binary) |
-| 9 | `bert-base-uncased` | Sentence Embeddings |
+| 5 | `roberta-base` | Masked LM |
+| 6 | `microsoft/deberta-v3-base` | Masked LM |
+| 7 | `deepset/bert-base-uncased-squad2` | Question Answering |
+| 8 | `bert-large-uncased-whole-word-masking-finetuned-squad` | Question Answering |
+| 9 | `dslim/bert-base-NER` | Named Entity Recognition |
+| 10 | `nlptown/bert-base-multilingual-uncased-sentiment` | Sentiment (5-star) |
+| 11 | `distilbert-base-uncased-finetuned-sst-2-english` | Sentiment (binary) |
+| 12 | `bert-base-uncased` | Sentence Embeddings |
+| 13 | `nvidia/dragon-multiturn-query-encoder` | Sentence Embeddings (NVIDIA NGC) |
+| 14 | `facebook/bart-large-mnli` | Zero-Shot Classification |
 
 **Linux / macOS / WSL:**
 
@@ -464,9 +469,9 @@ docker run --gpus all --rm \
   CUDA avail. : True
 =============================================================================================================
 
-[1/9] fill-mask               bert-base-uncased
+[1/14] fill-mask               bert-base-uncased
        -> done  (load 1.82s, infer 0.0134s)
-[2/9] fill-mask               bert-large-uncased
+[2/14] fill-mask               bert-large-uncased
        -> done  (load 2.41s, infer 0.0158s)
 ...
 
@@ -480,6 +485,8 @@ docker run --gpus all --rm \
   2   bert-large-uncased                                   fill-mask               335.1   1340.6    2.41  0.0158
   3   distilbert-base-uncased                              fill-mask                66.4    265.4    0.97  0.0089
   4   albert-base-v2                                       fill-mask                11.7     46.6    0.71  0.0102
+  5   roberta-base                                         fill-mask               124.6    498.6    1.74  0.0128
+  6   microsoft/deberta-v3-base                            fill-mask                86.9    347.4    1.53  0.0115
   ...
 =============================================================================================================
   Memory = peak CUDA memory allocated (torch.cuda.max_memory_allocated)
