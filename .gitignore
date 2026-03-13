@@ -1,0 +1,22 @@
+# secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# uv
+# uv.lock is intentionally committed for reproducibility
+
+# model weights cache (can be large; populate via docker run volume mount)
+models/
+
+# editor
+.vscode/
+.idea/
+*.swp
