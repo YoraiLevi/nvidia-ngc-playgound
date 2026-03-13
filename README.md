@@ -60,7 +60,7 @@ docker run --gpus all --rm `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
   nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/masked_lm.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py'
 ```
 
 ---
@@ -217,7 +217,7 @@ docker run --gpus all --rm \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
   nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/masked_lm.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py'
 ```
 
 **PowerShell:**
@@ -229,7 +229,7 @@ docker run --gpus all --rm `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
   nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/masked_lm.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py'
 ```
 
 **Expected output (truncated):**
@@ -257,7 +257,7 @@ docker run --gpus all --rm \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
   nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/masked_lm.py --text "NVIDIA makes the world'\''s fastest [MASK]." --top-k 3'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py --text "NVIDIA makes the world'\''s fastest [MASK]." --top-k 3'
 ```
 
 ---
@@ -277,7 +277,7 @@ docker run --gpus all --rm \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
   nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/embeddings.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/embeddings.py'
 ```
 
 **PowerShell:**
@@ -289,7 +289,7 @@ docker run --gpus all --rm `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
   nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/embeddings.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/embeddings.py'
 ```
 
 **Expected output (truncated):**
@@ -319,7 +319,7 @@ docker run --gpus all --rm \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
   nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/embeddings.py --sentences "I love pizza." "Pizza is my favourite food." "The sky is blue."'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/embeddings.py --sentences "I love pizza." "Pizza is my favourite food." "The sky is blue."'
 ```
 
 ---
@@ -339,7 +339,7 @@ docker run --gpus all --rm \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
   nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/qa.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/qa.py'
 ```
 
 **PowerShell:**
@@ -351,7 +351,7 @@ docker run --gpus all --rm `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
   nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/qa.py'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/qa.py'
 ```
 
 **Expected output (truncated):**
@@ -378,7 +378,7 @@ docker run --gpus all --rm \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
   nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv sync --no-install-project --locked --system && python src/bert_demo/qa.py --question "What year was CUDA released?" --context "NVIDIA introduced CUDA in 2006 as a parallel computing platform."'
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/qa.py --question "What year was CUDA released?" --context "NVIDIA introduced CUDA in 2006 as a parallel computing platform."'
 ```
 
 ---
@@ -526,20 +526,23 @@ automatically if no CUDA device is detected.)
 HOST                                    CONTAINER (nvcr.io/…/pytorch:25.01-py3)
 ─────────────────────────────────────   ────────────────────────────────────────
 uv init / uv add                        curl | sh  →  uv installed to ~/.local/bin
-  → pyproject.toml                      uv sync --no-install-project --locked --system
-  → uv.lock  ────── -v mount ─────────► reads uv.lock, installs transformers +
-                                          accelerate into the container's Python
+  → pyproject.toml                      uv pip install --system --break-system-packages transformers accelerate
+  → uv.lock  ────── local dev only      installs into the container's Python
                                         python src/bert_demo/*.py
                                           imports torch  (pre-installed by NGC)
                                           imports transformers  (installed by uv)
 ```
 
-- **`--no-install-project`** skips building and installing the `bert-demo` wheel;
-  only the listed dependencies are installed.
-- **`--locked`** asserts that `uv.lock` matches `pyproject.toml` exactly —
-  ensuring reproducible installs.
-- **`--system`** / **`UV_SYSTEM_PYTHON=1`** targets the container's existing
-  Python interpreter instead of creating an isolated virtual environment.
+- **`uv pip install --system --break-system-packages transformers accelerate`** installs those packages
+  directly into the container's Python. `--break-system-packages` bypasses PEP 668
+  (externally-managed Python), which blocks installs on NGC's Ubuntu 24.04 base.
+  Safe in this context because the container is isolated from the host.
+- **Why not `uv sync`?** `UV_SYSTEM_PYTHON` does not affect `uv sync`; it only
+  applies to `uv pip`. So `uv sync` would create a `.venv` and install there,
+  but `python` would run the system interpreter, which lacks the packages. Using
+  `uv pip install --system` avoids that mismatch.
+- On the host, **`uv sync`** (Step 6) creates `uv.lock` for local development;
+  the container does not use the lock file.
 
 ---
 
