@@ -14,6 +14,7 @@ No custom Docker image is built — you work directly with the published NGC con
 | Masked Language Modeling | `src/bert_demo/masked_lm.py` | Predict the top-k words for a `[MASK]` token |
 | Sentence Embeddings | `src/bert_demo/embeddings.py` | Encode sentences and compare them by cosine similarity |
 | Question Answering | `src/bert_demo/qa.py` | Locate an answer span inside a context paragraph |
+| **Benchmark Report** | `src/bert_demo/benchmark.py` | Run 9 BERT-family models, report device / memory / timing |
 
 ---
 
@@ -30,7 +31,8 @@ nvidia-ngc-playground/
         ├── __init__.py
         ├── masked_lm.py
         ├── embeddings.py
-        └── qa.py
+        ├── qa.py
+        └── benchmark.py
 ```
 
 Model weights are downloaded from Hugging Face Hub on first run and
@@ -92,7 +94,7 @@ You should see your GPU listed in the `nvidia-smi` output.
 2. Click your account name → **Setup** → **Generate API Key**
 3. Copy the key — it is shown only once
 
-Keep it safe; you will use it in the next step and again in Step 11.
+Keep it safe; you will use it in the next step and again in Step 12.
 
 ---
 
@@ -383,13 +385,115 @@ docker run --gpus all --rm \
 
 ---
 
-## Step 11 — Optional: Download the NGC BERT model artifact
+## Step 11 — Benchmark Report: all models at once
+
+`benchmark.py` loads **nine BERT-family models** across five task types
+and prints a summary table with device info, parameter counts, peak GPU
+memory, and wall-clock timings.
+
+**Models included:**
+
+| # | Model | Task |
+|---|---|---|
+| 1 | `bert-base-uncased` | Masked LM |
+| 2 | `bert-large-uncased` | Masked LM |
+| 3 | `distilbert-base-uncased` | Masked LM |
+| 4 | `albert-base-v2` | Masked LM |
+| 5 | `deepset/bert-base-uncased-squad2` | Question Answering |
+| 6 | `dslim/bert-base-NER` | Named Entity Recognition |
+| 7 | `nlptown/bert-base-multilingual-uncased-sentiment` | Sentiment (5-star) |
+| 8 | `distilbert-base-uncased-finetuned-sst-2-english` | Sentiment (binary) |
+| 9 | `bert-base-uncased` | Sentence Embeddings |
+
+**Linux / macOS / WSL:**
+
+```bash
+docker run --gpus all --rm \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/models":/root/.cache/huggingface \
+  -w /workspace \
+  -e UV_SYSTEM_PYTHON=1 \
+  nvcr.io/nvidia/pytorch:25.01-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/benchmark.py'
+```
+
+**PowerShell:**
+
+```powershell
+docker run --gpus all --rm `
+  -v "${PWD}:/workspace" `
+  -v "${PWD}/models:/root/.cache/huggingface" `
+  -w /workspace `
+  -e UV_SYSTEM_PYTHON=1 `
+  nvcr.io/nvidia/pytorch:25.01-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/benchmark.py'
+```
+
+**Force CPU (for comparison):**
+
+```bash
+docker run --gpus all --rm \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/models":/root/.cache/huggingface \
+  -w /workspace \
+  -e UV_SYSTEM_PYTHON=1 \
+  nvcr.io/nvidia/pytorch:25.01-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/benchmark.py --device cpu'
+```
+
+**Run a subset of tasks or models:**
+
+```bash
+# Only fill-mask and sentiment tasks
+... python src/bert_demo/benchmark.py --tasks fill-mask sentiment-analysis
+
+# Only models whose name contains "distilbert" or "albert"
+... python src/bert_demo/benchmark.py --models distilbert albert
+```
+
+**Expected output (truncated):**
+
+```
+=============================================================================================================
+  BERT-FAMILY MODEL BENCHMARK
+=============================================================================================================
+  Device type : CUDA
+  Device name : NVIDIA H100 80GB HBM3
+  GPU memory  : 81,559 MB total
+  PyTorch     : 2.6.0a0+ecf3bae43e.nv25.1
+  CUDA avail. : True
+=============================================================================================================
+
+[1/9] fill-mask               bert-base-uncased
+       -> done  (load 1.82s, infer 0.0134s)
+[2/9] fill-mask               bert-large-uncased
+       -> done  (load 2.41s, infer 0.0158s)
+...
+
+=============================================================================================================
+  SUMMARY
+=============================================================================================================
+  #   Model                                                Task                   Params   Memory    Load   Infer
+                                                                                    (M)     (MB)      (s)      (s)
+  -----------------------------------------------------------------------------------------------------
+  1   bert-base-uncased                                    fill-mask               109.5    438.2    1.82  0.0134
+  2   bert-large-uncased                                   fill-mask               335.1   1340.6    2.41  0.0158
+  3   distilbert-base-uncased                              fill-mask                66.4    265.4    0.97  0.0089
+  4   albert-base-v2                                       fill-mask                11.7     46.6    0.71  0.0102
+  ...
+=============================================================================================================
+  Memory = peak CUDA memory allocated (torch.cuda.max_memory_allocated)
+```
+
+---
+
+## Step 12 — Optional: Download the NGC BERT model artifact
 
 NVIDIA also hosts a pre-trained **BERTBaseUncased** checkpoint in the NGC
 model registry under `nvidia/nemo/bertbaseuncased`.  You can download it
 with the **NGC CLI** and load it through the NeMo framework.
 
-### 11a — Install the NGC CLI inside the container
+### 12a — Install the NGC CLI inside the container
 
 ```bash
 docker run --gpus all --rm -it \
@@ -405,7 +509,7 @@ docker run --gpus all --rm -it \
   '
 ```
 
-### 11b — Configure the NGC CLI and download the model
+### 12b — Configure the NGC CLI and download the model
 
 Replace `<YOUR_API_KEY>` with the value from your `.env` file.
 
@@ -427,7 +531,7 @@ docker run --gpus all --rm -it \
 
 The checkpoint is saved under `models/bertbaseuncased_v1.0.0rc1/`.
 
-### 11c — Load the checkpoint with NeMo (inside the container)
+### 12c — Load the checkpoint with NeMo (inside the container)
 
 Install NeMo on top of the PyTorch container, then load the downloaded
 checkpoint:
