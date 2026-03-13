@@ -15,7 +15,7 @@ import textwrap
 from typing import List, TypedDict
 
 import torch
-from transformers import pipeline
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 
 
 class Example(TypedDict):
@@ -76,6 +76,40 @@ def print_result(example: Example, answer: dict, index: int) -> None:
     print(f"Answer  : '{answer['answer']}'  (confidence: {answer['score']:.4f})")
 
 
+def extract_answer(
+    model: AutoModelForQuestionAnswering,
+    tokenizer: AutoTokenizer,
+    question: str,
+    context: str,
+    device: torch.device,
+) -> dict:
+    """Run extractive QA and return {'answer': str, 'score': float}."""
+    inputs = tokenizer(
+        question, context,
+        return_tensors="pt", truncation=True, max_length=512,
+    ).to(device)
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    start_logits = outputs.start_logits[0]
+    end_logits = outputs.end_logits[0]
+
+    start_probs = torch.softmax(start_logits, dim=0)
+    end_probs = torch.softmax(end_logits, dim=0)
+
+    start_idx = torch.argmax(start_probs).item()
+    end_idx = torch.argmax(end_probs).item()
+
+    if end_idx < start_idx:
+        return {"answer": "", "score": 0.0}
+
+    answer_ids = inputs["input_ids"][0][start_idx : end_idx + 1]
+    answer = tokenizer.decode(answer_ids, skip_special_tokens=True)
+    score = (start_probs[start_idx] * end_probs[end_idx]).item()
+    return {"answer": answer, "score": score}
+
+
 def main() -> None:
     args = parse_args()
 
@@ -86,19 +120,18 @@ def main() -> None:
     else:
         examples = DEFAULT_EXAMPLES
 
-    device = 0 if torch.cuda.is_available() else -1
-    device_label = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_label = torch.cuda.get_device_name(0) if device.type == "cuda" else "CPU"
     print(f"Device : {device_label}")
     print("Loading: deepset/bert-base-uncased-squad2 …")
 
-    qa = pipeline(
-        "question-answering",
-        model="deepset/bert-base-uncased-squad2",
-        device=device,
-    )
+    model_name = "deepset/bert-base-uncased-squad2"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForQuestionAnswering.from_pretrained(model_name).to(device)
+    model.eval()
 
     for i, example in enumerate(examples, start=1):
-        result = qa(question=example["question"], context=example["context"])
+        result = extract_answer(model, tokenizer, example["question"], example["context"], device)
         print_result(example, result, i)
 
     print(f"\n{'─' * 60}")

@@ -21,7 +21,7 @@ from typing import List, Optional
 
 import torch
 import torch.nn.functional as F
-from transformers import AutoModel, AutoTokenizer, pipeline as hf_pipeline
+from transformers import AutoModel, AutoModelForQuestionAnswering, AutoTokenizer, pipeline as hf_pipeline
 
 
 # ---------------------------------------------------------------------------
@@ -164,25 +164,43 @@ def _bench_qa(model_name: str, ctx: DeviceContext) -> Result:
     rss_before = _rss_mb()
 
     t0 = time.perf_counter()
-    pipe = hf_pipeline(
-        "question-answering", model=model_name, device=ctx.pipeline_device,
-    )
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForQuestionAnswering.from_pretrained(model_name).to(ctx.torch_device)
+    model.eval()
     load_s = time.perf_counter() - t0
 
+    inputs = tokenizer(
+        QA_QUESTION, QA_CONTEXT,
+        return_tensors="pt", truncation=True, max_length=512,
+    ).to(ctx.torch_device)
+
     t1 = time.perf_counter()
-    result = pipe(question=QA_QUESTION, context=QA_CONTEXT)
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    start_probs = torch.softmax(outputs.start_logits[0], dim=0)
+    end_probs = torch.softmax(outputs.end_logits[0], dim=0)
+    start_idx = torch.argmax(start_probs).item()
+    end_idx = torch.argmax(end_probs).item()
+
+    if end_idx >= start_idx:
+        answer_ids = inputs["input_ids"][0][start_idx : end_idx + 1]
+        answer = tokenizer.decode(answer_ids, skip_special_tokens=True)
+        score = (start_probs[start_idx] * end_probs[end_idx]).item()
+    else:
+        answer, score = "", 0.0
     infer_s = time.perf_counter() - t1
 
-    params = _count_params(pipe.model)
+    params = _count_params(model)
     gpu_mb = _gpu_peak_mb() if ctx.on_gpu else 0.0
     rss_delta = _rss_mb() - rss_before
 
     preview = (
         f"Q: {QA_QUESTION}\n"
-        f"    A: '{result['answer']}' (confidence: {result['score']:.3f})"
+        f"    A: '{answer}' (confidence: {score:.3f})"
     )
 
-    del pipe
+    del model, tokenizer
     return Result(
         model_name, "question-answering", ctx.device_type, ctx.device_name,
         params, load_s, infer_s, gpu_mb, rss_delta, preview,
@@ -373,7 +391,7 @@ def _print_system_info(ctx: DeviceContext) -> None:
     print(f"  Device type : {ctx.device_type}")
     print(f"  Device name : {ctx.device_name}")
     if ctx.on_gpu:
-        total = torch.cuda.get_device_properties(0).total_mem / (1024 ** 2)
+        total = torch.cuda.get_device_properties(0).total_memory / (1024 ** 2)
         print(f"  GPU memory  : {total:,.0f} MB total")
     print(f"  PyTorch     : {torch.__version__}")
     print(f"  CUDA avail. : {torch.cuda.is_available()}")
