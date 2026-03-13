@@ -11,8 +11,10 @@ requires-python = ">=3.10"
 dependencies = [
     # torch is provided by the NGC container at runtime; omit it here to avoid
     # overwriting the CUDA-optimised wheel already present in the container.
-    "transformers>=4.40.0",
-    "accelerate>=0.30.0",
+    "transformers>=5.3.0",
+    "accelerate>=1.13.0",
+    "sentencepiece>=0.2.0",
+    "tiktoken>=0.8.0",
 ]
 
 [project.optional-dependencies]

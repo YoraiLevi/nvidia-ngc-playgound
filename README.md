@@ -61,8 +61,8 @@ docker run --gpus all --rm `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
-  nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/masked_lm.py'
 ```
 
 ---
@@ -74,7 +74,7 @@ Before starting, confirm the following are installed:
 - **Docker** — [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine (Linux)
 - **NVIDIA Container Toolkit** — enables GPU passthrough into containers
   ([install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html))
-- **NVIDIA driver ≥ 570** — required by the 25.01 NGC container
+- **NVIDIA driver ≥ 570** — required by the 26.02 NGC container (CUDA 13.1)
 - An **NVIDIA GPU** with CUDA support
 - A free **NVIDIA developer account** at [developer.nvidia.com](https://developer.nvidia.com)
 
@@ -137,11 +137,11 @@ A successful login prints `Login Succeeded`.
 
 ## Step 4 — Pull the NGC PyTorch container
 
-The `25.01-py3` image includes CUDA 12.8, cuDNN 9.7, and PyTorch 2.6.
+The `26.02-py3` image includes CUDA 13.1, cuDNN, and PyTorch 2.11.
 It is ~18 GB; this step only needs to run once.
 
 ```bash
-docker pull nvcr.io/nvidia/pytorch:25.01-py3
+docker pull nvcr.io/nvidia/pytorch:26.02-py3
 ```
 
 ---
@@ -218,8 +218,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/masked_lm.py'
 ```
 
 **PowerShell:**
@@ -230,8 +230,8 @@ docker run --gpus all --rm `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
-  nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/masked_lm.py'
 ```
 
 **Expected output (truncated):**
@@ -258,8 +258,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/masked_lm.py --text "NVIDIA makes the world'\''s fastest [MASK]." --top-k 3'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/masked_lm.py --text "NVIDIA makes the world'\''s fastest [MASK]." --top-k 3'
 ```
 
 ---
@@ -278,8 +278,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/embeddings.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/embeddings.py'
 ```
 
 **PowerShell:**
@@ -290,8 +290,8 @@ docker run --gpus all --rm `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
-  nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/embeddings.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/embeddings.py'
 ```
 
 **Expected output (truncated):**
@@ -320,8 +320,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/embeddings.py --sentences "I love pizza." "Pizza is my favourite food." "The sky is blue."'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/embeddings.py --sentences "I love pizza." "Pizza is my favourite food." "The sky is blue."'
 ```
 
 ---
@@ -340,8 +340,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/qa.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/qa.py'
 ```
 
 **PowerShell:**
@@ -352,8 +352,8 @@ docker run --gpus all --rm `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
-  nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/qa.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/qa.py'
 ```
 
 **Expected output (truncated):**
@@ -379,8 +379,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/qa.py --question "What year was CUDA released?" --context "NVIDIA introduced CUDA in 2006 as a parallel computing platform."'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/qa.py --question "What year was CUDA released?" --context "NVIDIA introduced CUDA in 2006 as a parallel computing platform."'
 ```
 
 ---
@@ -418,8 +418,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/benchmark.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/benchmark.py'
 ```
 
 **PowerShell:**
@@ -430,8 +430,8 @@ docker run --gpus all --rm `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
   -e UV_SYSTEM_PYTHON=1 `
-  nvcr.io/nvidia/pytorch:25.01-py3 `
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/benchmark.py'
+  nvcr.io/nvidia/pytorch:26.02-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/benchmark.py'
 ```
 
 **Force CPU (for comparison):**
@@ -442,8 +442,8 @@ docker run --gpus all --rm \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
   -e UV_SYSTEM_PYTHON=1 \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
-  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages transformers accelerate && python src/bert_demo/benchmark.py --device cpu'
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/benchmark.py --device cpu'
 ```
 
 **Run a subset of tasks or models:**
@@ -506,7 +506,7 @@ with the **NGC CLI** and load it through the NeMo framework.
 docker run --gpus all --rm -it \
   -v "$(pwd)":/workspace \
   -w /workspace \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
+  nvcr.io/nvidia/pytorch:26.02-py3 \
   bash -c '
     wget -q https://ngc.nvidia.com/downloads/ngccli_linux.zip -O /tmp/ngccli.zip &&
     unzip -q /tmp/ngccli.zip -d /tmp/ngccli &&
@@ -525,7 +525,7 @@ docker run --gpus all --rm -it \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/models \
   -w /workspace \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
+  nvcr.io/nvidia/pytorch:26.02-py3 \
   bash -c '
     wget -q https://ngc.nvidia.com/downloads/ngccli_linux.zip -O /tmp/ngccli.zip &&
     unzip -q /tmp/ngccli.zip -d /tmp/ngccli &&
@@ -548,7 +548,7 @@ docker run --gpus all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/models \
   -w /workspace \
-  nvcr.io/nvidia/pytorch:25.01-py3 \
+  nvcr.io/nvidia/pytorch:26.02-py3 \
   bash -c '
     pip install nemo_toolkit[nlp] --quiet &&
     python - <<EOF
@@ -565,6 +565,15 @@ EOF
 ---
 
 ## Troubleshooting
+
+### `ValueError: ... upgrade torch to at least v2.6` (CVE-2025-32434)
+
+Transformers 5.x requires torch ≥ 2.6 when loading `.bin` model files. The NGC
+26.02 container ships PyTorch 2.11, which satisfies this. If you use an older
+container (e.g. 25.01 with PyTorch 2.6.0a0), upgrade to `26.02-py3` or pin
+transformers to `>=4.40.0,<5.0`.
+
+---
 
 ### `docker: Error response from daemon: could not select device driver`
 
@@ -634,17 +643,17 @@ automatically if no CUDA device is detected.)
 ## How uv fits in
 
 ```
-HOST                                    CONTAINER (nvcr.io/…/pytorch:25.01-py3)
+HOST                                    CONTAINER (nvcr.io/…/pytorch:26.02-py3)
 ─────────────────────────────────────   ────────────────────────────────────────
 uv init / uv add                        curl | sh  →  uv installed to ~/.local/bin
-  → pyproject.toml                      uv pip install --system --break-system-packages transformers accelerate
+  → pyproject.toml                      uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken
   → uv.lock  ────── local dev only      installs into the container's Python
                                         python src/bert_demo/*.py
                                           imports torch  (pre-installed by NGC)
                                           imports transformers  (installed by uv)
 ```
 
-- **`uv pip install --system --break-system-packages transformers accelerate`** installs those packages
+- **`uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken`** installs those packages
   directly into the container's Python. `--break-system-packages` bypasses PEP 668
   (externally-managed Python), which blocks installs on NGC's Ubuntu 24.04 base.
   Safe in this context because the container is isolated from the host.
@@ -659,7 +668,7 @@ uv init / uv add                        curl | sh  →  uv installed to ~/.local
 
 ## References
 
-- [NGC PyTorch container release notes (25.01)](https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-25-01.html)
+- [NGC PyTorch container release notes (26.02)](https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-26-02.html)
 - [NGC container registry — PyTorch](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
 - [NGC model — bertbaseuncased (NeMo)](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/bertbaseuncased)
 - [NVIDIA Container Toolkit install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
