@@ -1,0 +1,211 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────────────────────
+# spark-podman-run  —  run a rootless Podman container on both DGX Sparks
+#
+# One command from one terminal.  Handles device passthrough, RDMA, NCCL
+# env vars, workspace sync, and output multiplexing — no root needed.
+#
+# Usage:
+#   spark-podman-run [OPTIONS] <image> [-- <command> [args...]]
+#
+# The following env vars are set inside every container:
+#   RANK, LOCAL_RANK, WORLD_SIZE, MASTER_ADDR, MASTER_PORT,
+#   NCCL_SOCKET_IFNAME, NCCL_IB_HCA
+#
+# If your command needs to reference them, wrap it in  bash -c '...'  so
+# the variables expand inside the container, not on the host:
+#
+#   spark-podman-run image -- bash -c '/app/test $RANK 2 $MASTER_ADDR'
+#
+# Frameworks like torchrun read them from the environment automatically,
+# so no wrapper is needed:
+#
+#   spark-podman-run nvcr.io/nvidia/pytorch:26.02-py3 -- \
+#       torchrun --nproc_per_node=1 --nnodes=2 train.py
+#
+# Options:
+#   -v HOST:CTR     Extra volume mount (repeatable)
+#   -e KEY=VAL      Extra environment variable (repeatable)
+#   -w DIR          Working directory inside container  [/workspace]
+#   --node2 HOST    SSH hostname of node 2              [auto from ~/.ssh/config]
+#   --interface NIC CX-7 NIC name                       [auto from ibdev2netdev]
+#   --port N        MASTER_PORT                         [29500]
+#   --no-sync       Skip rsync of cwd to node 2
+#   --dry-run       Print the podman commands, don't run them
+#   -h, --help      Show this help
+# ─────────────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+# ── defaults ────────────────────────────────────────────────────────────────
+NODE2=""
+IF_NAME=""
+EXTRA_VOLUMES=()
+EXTRA_ENVS=()
+WORKDIR="/workspace"
+DRY_RUN=false
+NO_SYNC=false
+MASTER_PORT=29500
+
+C0=$'\033[1;34m'   # blue   = node 1
+C1=$'\033[1;33m'   # yellow = node 2
+CR=$'\033[0m'      # reset
+
+# ── parse arguments ─────────────────────────────────────────────────────────
+usage() {
+    sed -n '2,/^set -/{ /^set -/d; s/^# \{0,1\}//; p }' "$0"
+    exit "${1:-0}"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -v)          EXTRA_VOLUMES+=("$2"); shift 2 ;;
+        -e)          EXTRA_ENVS+=("$2"); shift 2 ;;
+        -w)          WORKDIR="$2"; shift 2 ;;
+        --node2)     NODE2="$2"; shift 2 ;;
+        --interface) IF_NAME="$2"; shift 2 ;;
+        --port)      MASTER_PORT="$2"; shift 2 ;;
+        --dry-run)   DRY_RUN=true; shift ;;
+        --no-sync)   NO_SYNC=true; shift ;;
+        -h|--help)   usage 0 ;;
+        -*)          echo "Unknown option: $1" >&2; usage 1 ;;
+        *)           break ;;          # first positional = image
+    esac
+done
+
+IMAGE="${1:?ERROR: container image required.  Run with --help for usage.}"
+shift
+# consume optional -- separator between image and command
+[[ "${1:-}" == "--" ]] && shift
+COMMAND=("$@")
+
+# ── auto-detect node 2 ─────────────────────────────────────────────────────
+if [[ -z "$NODE2" ]]; then
+    NODE2=$(grep -m1 '^Host calc2' ~/.ssh/config 2>/dev/null | awk '{print $2}') || true
+    [[ -z "$NODE2" ]] && { echo "ERROR: cannot find node 2.  Set --node2 <ssh-host>." >&2; exit 1; }
+fi
+
+echo "Node 2: $NODE2"
+if ! ssh -o ConnectTimeout=5 "$NODE2" true 2>/dev/null; then
+    echo "ERROR: cannot SSH to $NODE2" >&2; exit 1
+fi
+
+# ── auto-detect CX-7 interface ─────────────────────────────────────────────
+if [[ -z "$IF_NAME" ]]; then
+    read -r IB_HCA IF_NAME <<< "$(
+        ibdev2netdev 2>/dev/null | grep -E '^rocep1' | grep '(Up)' | head -1 | awk '{print $1, $5}'
+    )"
+    [[ -z "$IF_NAME" ]] && { echo "ERROR: no CX-7 interface up.  Set --interface." >&2; exit 1; }
+else
+    IB_HCA=$(ibdev2netdev 2>/dev/null | grep "$IF_NAME" | awk '{print $1}')
+fi
+
+NODE1_IP=$(ip -4 addr show "$IF_NAME" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+NODE2_IP=$(ssh "$NODE2" "ip -4 addr show $IF_NAME 2>/dev/null" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+
+echo "Interface: $IF_NAME  (HCA: ${IB_HCA:-?})"
+echo "Node 1 IP: $NODE1_IP"
+echo "Node 2 IP: $NODE2_IP"
+
+# ── sync workspace to node 2 ───────────────────────────────────────────────
+if [[ "$NO_SYNC" == false ]]; then
+    echo "Syncing $(pwd) → $NODE2:$(pwd) ..."
+    ssh "$NODE2" "mkdir -p '$(pwd)'" 2>/dev/null || true
+    rsync -a --delete \
+          --exclude='.git' --exclude='__pycache__' \
+          --exclude='.venv' --exclude='models/' --exclude='*.pyc' \
+          "$(pwd)/" "$NODE2:$(pwd)/" 2>/dev/null || true
+fi
+
+# ── ensure image exists on node 2 ──────────────────────────────────────────
+if [[ -z "$(ssh "$NODE2" "podman images -q '$IMAGE' 2>/dev/null" | head -1)" ]]; then
+    echo "Pulling $IMAGE on $NODE2 (first time only) ..."
+    ssh "$NODE2" "podman pull '$IMAGE'" 2>&1 | grep -v '^time=' | tail -3
+fi
+
+# ── build podman argument array ─────────────────────────────────────────────
+build_podman_args() {
+    local rank=$1
+    local -a args=(
+        --rm --network=host --ipc=host
+        --device /dev/nvidia0
+        --device /dev/nvidiactl
+        --device /dev/nvidia-uvm
+        --device /dev/nvidia-uvm-tools
+        --device /dev/infiniband/rdma_cm
+    )
+    for uv in /dev/infiniband/uverbs*; do
+        [[ -e "$uv" ]] && args+=(--device "$uv")
+    done
+    args+=(
+        -v "$(pwd):$WORKDIR" -w "$WORKDIR"
+        -v /usr/local/cuda/targets/sbsa-linux/lib:/cuda-lib:ro
+        -v /usr/lib/aarch64-linux-gnu:/host-lib:ro
+        -e "RANK=$rank" -e LOCAL_RANK=0 -e WORLD_SIZE=2
+        -e "MASTER_ADDR=$NODE1_IP" -e "MASTER_PORT=$MASTER_PORT"
+        -e "NCCL_SOCKET_IFNAME=$IF_NAME"
+    )
+    [[ -n "${IB_HCA:-}" ]] && args+=(-e "NCCL_IB_HCA=$IB_HCA")
+    for v in "${EXTRA_VOLUMES[@]}"; do args+=(-v "$v"); done
+    for e in "${EXTRA_ENVS[@]}";  do args+=(-e "$e"); done
+    printf '%s\n' "${args[@]}"
+}
+
+readarray -t A0 <<< "$(build_podman_args 0)"
+readarray -t A1 <<< "$(build_podman_args 1)"
+
+# ── build the full shell command string for SSH (node 2 / rank 1) ───────────
+build_ssh_cmd() {
+    local cmd="podman run"
+    local a
+    for a in "${A1[@]}"; do cmd+=" $(printf '%q' "$a")"; done
+    cmd+=" $(printf '%q' "$IMAGE")"
+    if [[ ${#COMMAND[@]} -gt 0 ]]; then
+        local c
+        for c in "${COMMAND[@]}"; do cmd+=" $(printf '%q' "$c")"; done
+    fi
+    echo "$cmd"
+}
+
+SSH_CMD=$(build_ssh_cmd)
+
+# ── dry-run mode ────────────────────────────────────────────────────────────
+if [[ "$DRY_RUN" == true ]]; then
+    echo ""
+    echo "=== Node 1 (rank 0) ==="
+    echo "podman run ${A0[*]} $IMAGE ${COMMAND[*]:-}"
+    echo ""
+    echo "=== Node 2 (rank 1) — via ssh $NODE2 ==="
+    echo "$SSH_CMD"
+    exit 0
+fi
+
+# ── launch both ranks ──────────────────────────────────────────────────────
+echo ""
+echo "Launching on both nodes..."
+echo "─────────────────────────────────────────────────────────────"
+
+# rank 0 first (it usually runs the listener / rendezvous server)
+if [[ ${#COMMAND[@]} -gt 0 ]]; then
+    podman run "${A0[@]}" "$IMAGE" "${COMMAND[@]}" 2>&1 \
+        | sed -u "s/^/${C0}[node1]${CR} /" &
+else
+    podman run "${A0[@]}" "$IMAGE" 2>&1 \
+        | sed -u "s/^/${C0}[node1]${CR} /" &
+fi
+PID_R0=$!
+
+# short pause so rank 0's listening socket is up before rank 1 connects
+sleep 2
+
+# rank 1 via SSH
+ssh "$NODE2" "$SSH_CMD" 2>&1 \
+    | sed -u "s/^/${C1}[node2]${CR} /" &
+PID_R1=$!
+
+# wait for both; capture rank 0's exit code
+wait "$PID_R0" 2>/dev/null; RC=$?
+wait "$PID_R1" 2>/dev/null || true
+
+echo "─────────────────────────────────────────────────────────────"
+echo "Done (rank 0 exit code: $RC)"
+exit $RC
