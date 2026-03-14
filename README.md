@@ -37,6 +37,7 @@ Interface) support, GPU workloads run without any privilege escalation.
 | Question Answering | `src/bert_demo/qa.py` | Locate an answer span inside a context paragraph |
 | **Benchmark Report** | `src/bert_demo/benchmark.py` | Run 14 BERT-family models, report device / memory / timing |
 | **GPT-2 XL Generation** | `src/bert_demo/generate.py` | Generate text with a 1.5 B-param LLM — visible in `nvtop` |
+| **Multi-Node NCCL** | [`src/nccl_multi_node/`](src/nccl_multi_node/GUIDE.md) | GPU-to-GPU NCCL over two Sparks in rootless Podman (no MPI) |
 
 ---
 
@@ -49,13 +50,17 @@ nvidia-ngc-playground/
 ├── .gitignore
 ├── pyproject.toml          ← uv project (transformers, accelerate)
 └── src/
-    └── bert_demo/
-        ├── __init__.py
-        ├── masked_lm.py
-        ├── embeddings.py
-        ├── qa.py
-        ├── benchmark.py
-        └── generate.py
+    ├── bert_demo/
+    │   ├── __init__.py
+    │   ├── masked_lm.py
+    │   ├── embeddings.py
+    │   ├── qa.py
+    │   ├── benchmark.py
+    │   └── generate.py
+    └── nccl_multi_node/
+        ├── GUIDE.md               ← how to run NCCL across two Sparks
+        ├── nccl_podman_test.cu    ← standalone NCCL test (no MPI)
+        └── run_nccl_podman.sh     ← rootless podman launch wrapper
 ```
 
 Model weights are downloaded from Hugging Face Hub on first run and
