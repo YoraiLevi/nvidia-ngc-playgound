@@ -13,7 +13,7 @@ build/
 # uv
 # uv.lock is intentionally committed for reproducibility
 
-# model weights cache (can be large; populate via docker run volume mount)
+# model weights cache (can be large; populate via podman run volume mount)
 models/
 
 # editor

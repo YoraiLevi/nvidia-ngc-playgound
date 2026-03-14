@@ -1,9 +1,30 @@
-# NVIDIA NGC — BERT Base Uncased in Docker
+# NVIDIA NGC — Rootless GPU Containers with Podman
 
-A step-by-step tutorial for running **BERT base uncased** inside the
+A proof-of-concept for running **GPU-accelerated ML workloads without
+sudo** using [Podman](https://podman.io/) and the
 [NVIDIA NGC PyTorch container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch).
+Every `podman run` command below executes as a regular, unprivileged user —
+no root, no daemon, no docker group.
+
+The demos use **BERT base uncased** as the workload.
 Every step is a single copy-pastable shell command.
-No custom Docker image is built — you work directly with the published NGC container.
+No custom container image is built — you work directly with the published NGC container.
+
+---
+
+## Why Podman?
+
+| | Docker | Podman |
+|---|---|---|
+| **Daemon** | `dockerd` runs as root | Daemonless — direct fork/exec |
+| **Default privileges** | Requires `sudo` or `docker` group (root-equivalent) | Rootless by default |
+| **GPU passthrough** | `--gpus all` via nvidia-container-runtime | `--device nvidia.com/gpu=all` via CDI |
+
+With Docker, adding a user to the `docker` group grants them
+**unrestricted root access** to the host.  Podman eliminates this: every
+container run is an unprivileged process owned by your user account.
+Combined with the NVIDIA Container Toolkit's CDI (Container Device
+Interface) support, GPU workloads run without any privilege escalation.
 
 ---
 
@@ -15,6 +36,7 @@ No custom Docker image is built — you work directly with the published NGC con
 | Sentence Embeddings | `src/bert_demo/embeddings.py` | Encode sentences and compare them by cosine similarity |
 | Question Answering | `src/bert_demo/qa.py` | Locate an answer span inside a context paragraph |
 | **Benchmark Report** | `src/bert_demo/benchmark.py` | Run 14 BERT-family models, report device / memory / timing |
+| **GPT-2 XL Generation** | `src/bert_demo/generate.py` | Generate text with a 1.5 B-param LLM — visible in `nvtop` |
 
 ---
 
@@ -32,7 +54,8 @@ nvidia-ngc-playground/
         ├── masked_lm.py
         ├── embeddings.py
         ├── qa.py
-        └── benchmark.py
+        ├── benchmark.py
+        └── generate.py
 ```
 
 Model weights are downloaded from Hugging Face Hub on first run and
@@ -43,7 +66,7 @@ container, so they are only downloaded once.
 
 ## Shell variants
 
-The `docker run` commands below use **bash** syntax (`$(pwd)`, `\`).
+The `podman run` commands below use **bash** syntax (`$(pwd)`, `\`).
 If you are on **Windows PowerShell** substitute as shown:
 
 | bash | PowerShell |
@@ -56,7 +79,7 @@ If you are on **Windows PowerShell** substitute as shown:
 the line-continuation character:
 
 ```powershell
-docker run --gpus all --rm `
+podman run --device nvidia.com/gpu=all --rm `
   -v "${PWD}:/workspace" `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
@@ -65,26 +88,39 @@ docker run --gpus all --rm `
   bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/masked_lm.py'
 ```
 
+> **Note:** GPU passthrough via CDI is Linux-native.  On Windows, run
+> Podman inside WSL 2 where the Linux GPU stack is available.
+
 ---
 
 ## Prerequisites
 
 Before starting, confirm the following are installed:
 
-- **Docker** — [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine (Linux)
+- **Podman** — `sudo apt install podman` (Debian/Ubuntu), `sudo dnf install podman` (Fedora/RHEL),
+  or see the [Podman install guide](https://podman.io/docs/installation)
 - **NVIDIA Container Toolkit** — enables GPU passthrough into containers
   ([install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html))
+- **CDI spec generated** — a one-time setup step (requires sudo once):
+  ```bash
+  sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+  ```
+  Verify it worked: `nvidia-ctk cdi list` should show your GPU(s).
 - **NVIDIA driver ≥ 570** — required by the 26.02 NGC container (CUDA 13.1)
 - An **NVIDIA GPU** with CUDA support
 - A free **NVIDIA developer account** at [developer.nvidia.com](https://developer.nvidia.com)
 
-Verify your GPU and driver are visible to Docker:
+### Verify rootless GPU access
+
+This is the proof — **no sudo, no daemon, just your user account**:
 
 ```bash
-docker run --rm --gpus all nvidia/cuda:12.0.1-base-ubuntu22.04 nvidia-smi
+echo "I am: $(whoami) (uid=$(id -u))"
+podman run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:12.0.1-base-ubuntu22.04 nvidia-smi
 ```
 
-You should see your GPU listed in the `nvidia-smi` output.
+You should see your regular username (not `root`) and `nvidia-smi` output
+listing your GPU.  If this works, every command in this tutorial will work.
 
 ---
 
@@ -94,7 +130,7 @@ You should see your GPU listed in the `nvidia-smi` output.
 2. Click your account name → **Setup** → **Generate API Key**
 3. Copy the key — it is shown only once
 
-Keep it safe; you will use it in the next step and again in Step 12.
+Keep it safe; you will use it in the next step and again in Step 13.
 
 ---
 
@@ -114,21 +150,21 @@ NGC_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-## Step 3 — Authenticate Docker with NGC
+## Step 3 — Authenticate Podman with NGC
 
 NGC's container registry requires you to log in once per machine.
 The username is always the literal string `$oauthtoken`; the password is
 your API key.
 
 ```bash
-docker login nvcr.io --username '$oauthtoken' --password "$(grep NGC_API_KEY .env | cut -d= -f2)"
+podman login nvcr.io --username '$oauthtoken' --password "$(grep NGC_API_KEY .env | cut -d= -f2)"
 ```
 
 **PowerShell:**
 
 ```powershell
 $key = (Get-Content .env | Where-Object { $_ -match "NGC_API_KEY" }) -replace "NGC_API_KEY=", ""
-docker login nvcr.io --username '$oauthtoken' --password "$key"
+podman login nvcr.io --username '$oauthtoken' --password "$key"
 ```
 
 A successful login prints `Login Succeeded`.
@@ -141,7 +177,7 @@ The `26.02-py3` image includes CUDA 13.1, cuDNN, and PyTorch 2.11.
 It is ~18 GB; this step only needs to run once.
 
 ```bash
-docker pull nvcr.io/nvidia/pytorch:26.02-py3
+podman pull nvcr.io/nvidia/pytorch:26.02-py3
 ```
 
 ---
@@ -200,7 +236,7 @@ mkdir -p models
 ```
 
 The directory is mounted at `/root/.cache/huggingface` inside every
-`docker run` command below.  Hugging Face Transformers uses that path as
+`podman run` command below.  Hugging Face Transformers uses that path as
 its default download cache.
 
 ---
@@ -213,7 +249,7 @@ word hidden behind a `[MASK]` token.
 **Linux / macOS / WSL:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -225,7 +261,7 @@ docker run --gpus all --rm \
 **PowerShell:**
 
 ```powershell
-docker run --gpus all --rm `
+podman run --device nvidia.com/gpu=all --rm `
   -v "${PWD}:/workspace" `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
@@ -253,7 +289,7 @@ Top 5 predictions:
 **Try a custom sentence:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -273,7 +309,7 @@ matrix.  Semantically similar sentence pairs will be close to 1.0.
 **Linux / macOS / WSL:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -285,7 +321,7 @@ docker run --gpus all --rm \
 **PowerShell:**
 
 ```powershell
-docker run --gpus all --rm `
+podman run --device nvidia.com/gpu=all --rm `
   -v "${PWD}:/workspace" `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
@@ -315,7 +351,7 @@ close to 1.0 because they describe the same thing in different words.
 **Pass your own sentences:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -335,7 +371,7 @@ context paragraphs.
 **Linux / macOS / WSL:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -347,7 +383,7 @@ docker run --gpus all --rm \
 **PowerShell:**
 
 ```powershell
-docker run --gpus all --rm `
+podman run --device nvidia.com/gpu=all --rm `
   -v "${PWD}:/workspace" `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
@@ -374,7 +410,7 @@ Answer  : 'Jensen Huang, Chris Malachowsky, and Curtis Priem'  (confidence: 0.98
 **Ask a custom question:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -413,7 +449,7 @@ memory, and wall-clock timings.
 **Linux / macOS / WSL:**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -425,7 +461,7 @@ docker run --gpus all --rm \
 **PowerShell:**
 
 ```powershell
-docker run --gpus all --rm `
+podman run --device nvidia.com/gpu=all --rm `
   -v "${PWD}:/workspace" `
   -v "${PWD}/models:/root/.cache/huggingface" `
   -w /workspace `
@@ -437,7 +473,7 @@ docker run --gpus all --rm `
 **Force CPU (for comparison):**
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/root/.cache/huggingface \
   -w /workspace \
@@ -494,16 +530,105 @@ docker run --gpus all --rm \
 
 ---
 
-## Step 12 — Optional: Download the NGC BERT model artifact
+## Step 12 — Demo 5: GPT-2 XL Text Generation (1.5 B params)
+
+`generate.py` loads **GPT-2 XL** (1.5 billion parameters) in FP16 and
+generates text from a set of prompts.  This is a significantly heavier
+workload than the BERT demos — you will see clear GPU utilisation in
+monitoring tools like `nvtop`.
+
+**Linux / macOS / WSL:**
+
+```bash
+podman run --device nvidia.com/gpu=all --rm \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/models":/root/.cache/huggingface \
+  -w /workspace \
+  -e UV_SYSTEM_PYTHON=1 \
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/generate.py'
+```
+
+**PowerShell:**
+
+```powershell
+podman run --device nvidia.com/gpu=all --rm `
+  -v "${PWD}:/workspace" `
+  -v "${PWD}/models:/root/.cache/huggingface" `
+  -w /workspace `
+  -e UV_SYSTEM_PYTHON=1 `
+  nvcr.io/nvidia/pytorch:26.02-py3 `
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/generate.py'
+```
+
+**Fewer prompts / shorter output:**
+
+```bash
+podman run --device nvidia.com/gpu=all --rm \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/models":/root/.cache/huggingface \
+  -w /workspace \
+  -e UV_SYSTEM_PYTHON=1 \
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/generate.py --runs 2 --max-tokens 200'
+```
+
+**Custom prompt:**
+
+```bash
+podman run --device nvidia.com/gpu=all --rm \
+  -v "$(pwd)":/workspace \
+  -v "$(pwd)/models":/root/.cache/huggingface \
+  -w /workspace \
+  -e UV_SYSTEM_PYTHON=1 \
+  nvcr.io/nvidia/pytorch:26.02-py3 \
+  bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet && export PATH="$HOME/.local/bin:$PATH" && uv pip install --system --break-system-packages "transformers>=5.3.0" "accelerate>=1.13.0" sentencepiece tiktoken && python src/bert_demo/generate.py --prompts "Once upon a time in a galaxy far away"'
+```
+
+**Expected output (truncated):**
+
+```
+======================================================================
+  GPT-2 XL TEXT GENERATION — 5 prompt(s)
+======================================================================
+  Device     : NVIDIA GB10
+  VRAM total : 119.7 GB
+  PyTorch    : 2.11.0a0+eb65b36
+  CUDA avail.: True
+======================================================================
+
+Loading openai-community/gpt2-xl (1.5B params, torch.float16)...
+  Loaded in 60.8s  (GPU VRAM: 2.97 GB)
+
+--- Run 1/5  (438 tokens in 10.2s = 43.1 tok/s) ---
+The future of artificial intelligence will reshape every industry because
+of its capabilities and its applications …
+
+--- Run 2/5  (500 tokens in 10.9s = 46.0 tok/s) ---
+In a world where quantum computers become mainstream, the first thing
+that changes is that people don't want to do quantum stuff …
+...
+
+======================================================================
+  Total tokens     : 2223
+  Total time       : 48.9s
+  Avg tokens/sec   : 45.4
+  Peak GPU VRAM    : 3.13 GB
+======================================================================
+```
+
+---
+
+## Step 13 — Optional: Download the NGC BERT model artifact
 
 NVIDIA also hosts a pre-trained **BERTBaseUncased** checkpoint in the NGC
 model registry under `nvidia/nemo/bertbaseuncased`.  You can download it
 with the **NGC CLI** and load it through the NeMo framework.
 
-### 12a — Install the NGC CLI inside the container
+### 13a — Install the NGC CLI inside the container
 
 ```bash
-docker run --gpus all --rm -it \
+podman run --device nvidia.com/gpu=all --rm -it \
   -v "$(pwd)":/workspace \
   -w /workspace \
   nvcr.io/nvidia/pytorch:26.02-py3 \
@@ -516,12 +641,12 @@ docker run --gpus all --rm -it \
   '
 ```
 
-### 12b — Configure the NGC CLI and download the model
+### 13b — Configure the NGC CLI and download the model
 
 Replace `<YOUR_API_KEY>` with the value from your `.env` file.
 
 ```bash
-docker run --gpus all --rm -it \
+podman run --device nvidia.com/gpu=all --rm -it \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/models \
   -w /workspace \
@@ -538,13 +663,13 @@ docker run --gpus all --rm -it \
 
 The checkpoint is saved under `models/bertbaseuncased_v1.0.0rc1/`.
 
-### 12c — Load the checkpoint with NeMo (inside the container)
+### 13c — Load the checkpoint with NeMo (inside the container)
 
 Install NeMo on top of the PyTorch container, then load the downloaded
 checkpoint:
 
 ```bash
-docker run --gpus all --rm \
+podman run --device nvidia.com/gpu=all --rm \
   -v "$(pwd)":/workspace \
   -v "$(pwd)/models":/models \
   -w /workspace \
@@ -566,30 +691,29 @@ EOF
 
 ## Troubleshooting
 
-### `ValueError: ... upgrade torch to at least v2.6` (CVE-2025-32434)
+### `nvidia-ctk cdi list` shows 0 devices
 
-Transformers 5.x requires torch ≥ 2.6 when loading `.bin` model files. The NGC
-26.02 container ships PyTorch 2.11, which satisfies this. If you use an older
-container (e.g. 25.01 with PyTorch 2.6.0a0), upgrade to `26.02-py3` or pin
-transformers to `>=4.40.0,<5.0`.
+The CDI spec has not been generated.  Run once (requires sudo):
+
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+
+Then verify: `nvidia-ctk cdi list` should list your GPU(s).
 
 ---
 
-### `docker: Error response from daemon: could not select device driver`
+### `Error: CDI device ... not found` when running a container
 
-The NVIDIA Container Toolkit is not installed or not configured.
-Follow the [official install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html),
-then restart the Docker daemon:
-
-```bash
-sudo systemctl restart docker
-```
+Same cause — the CDI spec is missing or stale.  Regenerate it with the
+command above.  If you recently updated your NVIDIA driver, the spec must
+be regenerated to pick up the new device paths.
 
 ---
 
 ### `unauthorized: authentication required` when pulling the container
 
-Your Docker login session has expired.  Re-run Step 3.
+Your Podman login session has expired.  Re-run Step 3.
 
 ---
 
@@ -607,7 +731,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ### `Lockfile does not exist` or `uv.lock is out of date`
 
 Run `uv sync` on the host (Step 6) to regenerate `uv.lock`, then re-run
-the `docker run` command.
+the `podman run` command.
 
 ---
 
@@ -618,11 +742,39 @@ If you added it manually, remove it and run `uv sync` again on the host.
 
 ---
 
-### Windows: `invalid volume specification` path errors
+### Volume mount permission errors (rootless Podman)
 
-Use `${PWD}` (not `$(pwd)`) in PowerShell, and make sure Docker Desktop
-has **"Use the WSL 2 based engine"** or **"Expose daemon on tcp"** enabled
-in Settings → General.
+In rootless Podman, the container's UID 0 maps to your host user via user
+namespaces.  Files you own on the host appear as root-owned inside the
+container, and vice versa.  This normally works transparently.
+
+If you hit permission errors on mounted volumes:
+
+1. Ensure the host directories (`models/`, project root) are owned by
+   your user.
+2. On SELinux systems (Fedora, RHEL), add the `:Z` suffix to volume
+   mounts:
+   ```bash
+   -v "$(pwd)":/workspace:Z \
+   -v "$(pwd)/models":/root/.cache/huggingface:Z \
+   ```
+
+---
+
+### Short image names fail to resolve
+
+Podman does not default to Docker Hub.  Use fully-qualified image names:
+
+```bash
+# Won't work:
+podman run nvidia/cuda:12.0.1-base-ubuntu22.04 ...
+
+# Will work:
+podman run docker.io/nvidia/cuda:12.0.1-base-ubuntu22.04 ...
+```
+
+NGC images (`nvcr.io/...`) already include the full registry path and
+work without changes.
 
 ---
 
@@ -668,6 +820,9 @@ uv init / uv add                        curl | sh  →  uv installed to ~/.local
 
 ## References
 
+- [Podman — official site](https://podman.io/)
+- [Podman installation guide](https://podman.io/docs/installation)
+- [NVIDIA Container Toolkit — CDI support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/cdi-support.html)
 - [NGC PyTorch container release notes (26.02)](https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-26-02.html)
 - [NGC container registry — PyTorch](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
 - [NGC model — bertbaseuncased (NeMo)](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/bertbaseuncased)
